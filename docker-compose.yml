@@ -1,0 +1,34 @@
+services:
+  jaeger:
+    image: jaegertracing/jaeger:2.23.0
+    ports:
+      - "16686:16686"   # Interface web de Jaeger
+      - "4318:4318"     # Réception des traces (OTLP HTTP)
+
+  frontend:
+    build: ./app
+    command: opentelemetry-instrument python frontend.py
+    volumes:
+      - ./app:/app
+    ports:
+      - "8080:8080"
+    environment:
+      OTEL_SERVICE_NAME: frontend
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+    depends_on: [jaeger, backend]
+
+  backend:
+    build: ./app
+    command: opentelemetry-instrument python backend.py
+    volumes:
+      - ./app:/app
+    environment:
+      OTEL_SERVICE_NAME: backend
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+    depends_on: [jaeger]
